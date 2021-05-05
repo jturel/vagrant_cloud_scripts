@@ -15,6 +15,8 @@ require 'json'
 require 'date'
 
 fail "Must enter box name as first argument" unless ARGV[0]
+fail "missing VAGRANT_CLOUD_API_KEY in the enviroment" unless ENV['VAGRANT_CLOUD_API_KEY']
+
 BOX_NAME = ARGV[0]
 BASE_URL = "https://app.vagrantup.com"
 HEADERS = {"Authorization" => "Bearer #{ENV['VAGRANT_CLOUD_API_KEY']}"}
@@ -33,7 +35,7 @@ response = api.get("/api/v1/box/#{BOX_NAME}/")
 if response.success?
   boxes = JSON.parse(response.body)
   old_versions = boxes["versions"].select do |box| 
-    Gem::Version.new(box["version"]) < last_month_version
+    Gem::Version.new(box["version"]) < last_month_version && box["description_markdown"] == "nightly publish"
   end.map { |b| b["version"] }
 else
   p response.code, response.body
@@ -43,7 +45,6 @@ puts "No old versions found for #{BOX_NAME}" if old_versions.empty?
 
 old_versions.each do |old_version|
   puts "deleting #{old_version}"
-  sleep 0.5
   url = "/api/v1/box/#{BOX_NAME}/version/#{old_version}/"
   puts url
   response = api.delete(url)
